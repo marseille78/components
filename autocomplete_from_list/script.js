@@ -71,7 +71,6 @@ function createFieldAutocomplete(elClass, obj) {
             if (this.value === defVal) {
                 this.value = '';
             }
-
             if (this.value.length === 0) {
                 for (var i = 0; i < document.querySelectorAll(self.elClass + ' li').length; i++) {
                     document.querySelectorAll(self.elClass + ' li')[i].classList.add('visible');

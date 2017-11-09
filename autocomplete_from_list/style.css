@@ -1,0 +1,10 @@
+.fieldAutocomplete li {
+    display: none;
+}
+.fieldAutocomplete li.visible {
+    display: block;
+}
+.fieldAutocomplete li.active {
+    background-color: #00d;
+    color: #fff;
+}

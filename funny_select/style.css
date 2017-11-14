@@ -1,0 +1,6 @@
+.funny-select ul {
+    display: none;
+}
+.funny-select.active ul {
+    display: block;
+}

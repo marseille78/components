@@ -67,35 +67,46 @@ function createFieldAutocomplete(elClass, obj) {
         var defVal = this.defVal;
         var self = this;
         inputField.value = defVal;
+
         inputField.addEventListener('focus', function() {
-            if (this.value === defVal) {
-                this.value = '';
-            }
+            var thisField = this;
+            this.value = '';
+
             if (this.value.length === 0) {
-                for (var i = 0; i < document.querySelectorAll(self.elClass + ' li').length; i++) {
-                    document.querySelectorAll(self.elClass + ' li')[i].classList.add('visible');
-                }
+                showAllItems(self.elClass);
             } else {
                 completeField(inputField, self.el, self.elClass);
             }
-        });
-        inputField.addEventListener('blur', function() {
-            var currentVal = this.value;
 
-            if (currentVal === '') {
-                currentVal = defVal;
-            }
+            document.querySelector(self.elClass).classList.add('showed');
 
-            var isCorrect = [].slice.apply(document.querySelectorAll(self.elClass + ' li.visible')).some(function(item) {
-                return currentVal == item.textContent;
+            document.addEventListener('keydown', function(e) {
+                var event = e || event;
+                if (event.keyCode === 27) {
+                    if (thisField.value !== '') {
+                        thisField.value = '';
+                        showAllItems(self.elClass);
+                    }
+                }
             });
+        });
 
-            if (!isCorrect) {
-                this.value = defVal;
-            }
+        inputField.addEventListener('blur', function() {
+            document.querySelector(self.elClass).classList.remove('showed');
+        });
 
-            while (document.querySelectorAll(self.elClass + ' li.visible').length > 0) {
-                document.querySelectorAll(self.elClass + ' li.visible')[0].classList.remove('visible');
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.' + self.classWrapper + ' li')) {
+                inputField.value = e.target.textContent;
+                hideAllItems(self.elClass);
+            } else if (!e.target.closest('.' + self.classWrapper)) {
+                var isCorrect = [].slice.apply(document.querySelectorAll(self.elClass + ' li.visible')).some(function(item) {
+                    return inputField.value == item.textContent;
+                });
+                if ((!isCorrect || inputField.value === '') && self.el.classList.contains('showed')) {
+                    inputField.value = defVal;
+                }
+                hideAllItems(self.elClass);
             }
         });
         inputField.addEventListener('input', function() {
@@ -103,15 +114,15 @@ function createFieldAutocomplete(elClass, obj) {
         });
         document.addEventListener('keydown', function(e) {
             var event = e || event;
-            moveActiveItem(event, self.elClass, inputField)
+            moveActiveItem(event, self.elClass, inputField);
         });
     };
 
     /**
      * Функция для перемещения по списку при помощи стрелок
-     * @param event
-     * @param elClass
-     * @param inputField
+     * @param event {Object} - Объект события
+     * @param elClass {String} - Селектор списка
+     * @param inputField {Element} - Поле ввода
      */
     function moveActiveItem(event, elClass, inputField) {
         var list = document.querySelectorAll(elClass + ' .visible');
@@ -133,11 +144,14 @@ function createFieldAutocomplete(elClass, obj) {
                 inputField.value = document.querySelector(elClass + ' .active').textContent;
                 inputField.blur();
             }
+            hideAllItems(elClass);
         }
 
         /**
          * Перемещение при помощи стрелок, если активный пункт уже есть
-         * @param flag
+         * @param flag {Boolean} - Флаг, указывающий направление смещения выделенного элемента списка:
+         *      true - вниз
+         *      false - вверх
          */
         function moveItem(flag) {
             for (var i = (flag) ? 0 : list.length-1; (flag) ? i < list.length-1 : i > 0; (flag) ? i++ : i--) {
@@ -152,8 +166,11 @@ function createFieldAutocomplete(elClass, obj) {
         }
 
         /**
-         * Перемещение при помощи стрелок, если активного пункта еще нет
-         * @param flag
+         * Старт перемещения при помощи стрелок, если активного пункта еще нет
+         * @param flag {Boolean} - Флаг, укзазывающий, с какого конца списка начнется смещение выделенного элемента,
+         * если выделенного элемента еще нет:
+         *      true - Движение начинается низ с первого элемента
+         *      false - Движение начинается вверх с последнего елемента
          */
         function startMoveItem(flag) {
             var itemStart = (flag) ? list[0] : list[list.length - 1];
@@ -164,9 +181,9 @@ function createFieldAutocomplete(elClass, obj) {
 
     /**
      * Функция для создания блока-обертки
-     * @param el
-     * @param classWrapper
-     * @param inputName
+     * @param el {Element} - Список (напр. <ul>)
+     * @param classWrapper {String} - Класс обертки списка <ul>
+     * @param inputName {String} - Атрибут 'name' поля ввода
      * @returns {boolean}
      */
     function createWrap(el, classWrapper, inputName) {
@@ -175,12 +192,13 @@ function createFieldAutocomplete(elClass, obj) {
         wrap.appendChild(createField(inputName));
         wrap.innerHTML = wrap.innerHTML + el.outerHTML;
         el.parentNode.replaceChild(wrap, el);
+
         return true;
     }
 
     /**
      * Функция для создания поля ввода
-     * @param name
+     * @param name {String} - Атрибут 'name' поля ввода
      * @returns {Element}
      */
     function createField(name) {
@@ -195,9 +213,9 @@ function createFieldAutocomplete(elClass, obj) {
 
     /**
      * Функция для реализации автозаполнения
-     * @param field
-     * @param el
-     * @param elClass
+     * @param field {Element} - Поле ввода
+     * @param el {Element} - Список
+     * @param elClass {String} - Класс списка
      */
     function completeField(field, el, elClass) {
         var list = el.querySelectorAll('li');
@@ -221,6 +239,28 @@ function createFieldAutocomplete(elClass, obj) {
             }
         });
     }
+
+    /**
+     * Показ всех элементов списка
+     * @param classList {String} - Селектор элемента списка
+     */
+    function showAllItems(classList) {
+        for (var i = 0; i < document.querySelectorAll(classList + ' li').length; i++) {
+            if (document.querySelectorAll(classList + ' li')[i].classList.contains('.visible')) continue;
+            document.querySelectorAll(classList + ' li')[i].classList.add('visible');
+        }
+    }
+
+    /**
+     * Скрытие всех элементов списка
+     * @param classList {String} - Класс списка
+     */
+    function hideAllItems(classList) {
+        while (document.querySelectorAll(classList + ' li.visible').length > 0) {
+            document.querySelectorAll(classList + ' li.visible')[0].classList.remove('visible');
+        }
+    }
+
     return o;
 }
 

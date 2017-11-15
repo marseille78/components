@@ -14,7 +14,7 @@ function FunnySelect(elSelector, obj) {
         document.addEventListener('click', function(e) {
             var event = e || event;
             if (!event.target.closest('.' + containerClass + '.active')) {
-                hideDataList(containerClass);
+                hideDataList(containerClass, currentData);
             }
         });
 
@@ -22,6 +22,7 @@ function FunnySelect(elSelector, obj) {
             currentEl[i] = document.querySelectorAll(this.elSelector)[0];
             currentData[i] = getDataCurrent(currentEl[i]);
             containerEl[i] = createContainer(currentEl[i]);
+            containerEl[i].setAttribute('data-idx', i);
             var containerClass = containerEl[i].classList[0];
 
             field[i] = createField(containerEl[i], this.fieldName);
@@ -30,36 +31,97 @@ function FunnySelect(elSelector, obj) {
             field[i].setAttribute('data-default-value', currentData[i][0]);
 
             field[i].addEventListener('focus', function(e) {
+                var self = this;
+
                 var list = this.parentNode.nextElementSibling;
-                if (!this.closest('.active')) {
-                    hideDataList(containerClass);
-                    showDataList(this, list);
+                if (!self.closest('.active')) {
+                    hideDataList(containerClass, currentData);
+                    showDataList(self, list);
                 }
+                document.addEventListener('keydown', function(e) {
+                    var event = e || event;
+                    moveActiveItem(event, self, containerClass, currentData);
+                });
             });
 
             field[i].addEventListener('input', function() {
-                debugger;
-                completeField(this);
+                var containerList = this.parentNode.nextElementSibling;
+                var idx = this.closest('.' + containerClass).getAttribute('data-idx');
+                completeField(this, containerList, currentData[idx]);
             });
 
             i++;
         }
     };
 
-    function completeField(field) {
-        debugger;
+    function moveActiveItem(event, ctx, containerClass, currentData) {
+        var curList = ctx.parentNode.nextElementSibling;
+        var curListItems = curList.querySelectorAll('li');
+        var resultValue = null;
+
+        if (event.keyCode === 40) {
+            resultValue = moveItem(0);
+            ctx.value = resultValue;
+        } else if (event.keyCode === 38) {
+            resultValue = moveItem(curListItems.length-1, false);
+            ctx.value = resultValue;
+        } else if (event.keyCode === 13) {
+            event.preventDefault();
+            hideDataList(containerClass, currentData);
+        }
+
+        function moveItem(startPos, direction) {
+            direction = (direction === undefined) ? true : false;
+
+            if (curList.querySelectorAll('.active').length === 0) {
+                curList.querySelectorAll('li')[startPos].classList.add('active');
+                resultValue = curList.querySelectorAll('li')[startPos].innerHTML;
+            } else {
+                var curActive = curList.querySelector('.active');
+                if (direction) {
+                    if (curActive.nextElementSibling) {
+                        curActive.classList.remove('active');
+                        curActive.nextElementSibling.classList.add('active');
+                        resultValue = curActive.nextElementSibling.innerHTML;
+                    } else {
+                        resultValue = curActive.innerHTML;
+                    }
+                } else {
+                    if (curActive.previousElementSibling) {
+                        curActive.classList.remove('active');
+                        curActive.previousElementSibling.classList.add('active');
+                        resultValue = curActive.previousElementSibling.innerHTML;
+                    } else {
+                        resultValue = curActive.innerHTML;
+                    }
+                }
+            }
+
+            return resultValue;
+        }
     }
 
     /**
      * Скрытие всех списков данных
      * @param containerClass {String} - Класс контейнера компонента
+     * @param currentData {Object} - Объект массивов данных
      */
-    function hideDataList(containerClass) {
+    function hideDataList(containerClass, currentData) {
         var i = 0;
         while (document.querySelectorAll('.' + containerClass + '.active').length > 0) {
-            setDefaultValue(document.querySelectorAll('.' + containerClass + '.active')[i].querySelector('input[type=text]'),
-                document.querySelectorAll('.' + containerClass + '.active')[i].querySelector('input[type=text]').getAttribute('data-default-value'));
-            document.querySelectorAll('.' + containerClass + '.active')[i].classList.remove('active');
+            var container = document.querySelectorAll('.' + containerClass + '.active')[i];
+            var field = container.querySelector('input[type=text]');
+            if (container.querySelectorAll('li.active').length > 0) {
+                setDefaultValue(field, container.querySelector('li.active').innerHTML);
+            } else {
+                setDefaultValue(field, field.getAttribute('data-default-value'));
+            }
+            container.classList.remove('active');
+            var idx = container.getAttribute('data-idx');
+            var curUL = container.querySelector('ul');
+            container.removeChild(curUL);
+            createDataList(currentData[idx], container);
+            field.blur();
         }
     }
 
@@ -142,11 +204,7 @@ function FunnySelect(elSelector, obj) {
      * @param defValue {String} - Значение поля ввода по умолчанию
      * @param field {Element} - Текущее поле ввода
      */
-    function setDefaultValue(field, dataItem, defValue) {
-        // debugger;
-        // defValue = defValue || '';
-        // field.setAttribute('value', defValue);
-        // field.value = defValue;
+    function setDefaultValue(field, dataItem) {
         field.value = dataItem;
     }
 
@@ -156,9 +214,38 @@ function FunnySelect(elSelector, obj) {
      * @param dataList {Element} - Список данных
      */
     function showDataList(field, dataList) {
-        dataList.classList.add('showed');
         dataList.parentNode.classList.add('active');
         field.value = '';
+    }
+
+
+    /**
+     * Автоподбор списка элементов
+     * @param field {Element} - Поле ввода
+     * @param containerList {Element} - Блок списка
+     * @param arrData {Array} - Массив элементов
+     */
+    function completeField(field, containerList, arrData) {
+        var reg = new RegExp(field.value, 'i');
+
+        var count = arrData.filter(function(item) {
+            return reg.test(item);
+        });
+        if (count.length == 0) {
+            field.value = field.value.slice(0, -1);
+            return;
+        }
+
+        var newArrData = arrData.filter(function(item) {
+            return reg.test(item);
+        });
+        containerList.innerHTML = '';
+
+        newArrData.forEach(function(item) {
+            var curLi = document.createElement('li');
+            curLi.innerHTML = item;
+            containerList.appendChild(curLi);
+        });
     }
 
     return o;

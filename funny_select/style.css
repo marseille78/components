@@ -4,3 +4,7 @@
 .funny-select.active ul {
     display: block;
 }
+.funny-select li.active {
+    background-color: #00f;
+    color: #fff;
+}

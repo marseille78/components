@@ -1,128 +1,117 @@
-function FunnySelect(elSelector, obj) {
+/**
+ * Создание объектов Funny Field Select
+ * @param elSelector {String} - Селектор принимаемых елементов
+ * @param objData {Object} - Объект дополнительных свойств:
+ *      fieldName {String} - Корень значения атрибута поля (name) для поля ввода
+ *      fieldId {String} - Корень значения атрибута поля (id) для поля ввода
+ *      containerClass {String} - Класс контейнера. По умолчанию (funny-field-select) (В случае изменения, нужно будет изменить классы в файле стилей)
+ * @returns {Object}
+ * @constructor
+ */
+function FunnySelect(elSelector, objData) {
+    var elSelector = elSelector;
+    var fieldName = objData.fieldName;
+    var fieldId = objData.fieldId;
+    var containerClass = objData.containerClass || 'funny-field-select';
+
     var o = new Object();
-    o.elSelector = elSelector;
-    o.fieldName = obj.fieldName;
+
+    /**
+     * Метод инициализации объекта
+     *
+     * *** ДОПОЛНИТЕЛЬНЫЕ ПЕРЕМЕННЫЕ ***
+     * listElements {List} - Список элементов с заданным селектором
+     * container - Промежуточная переменная для создания Элемента-контейнера для текущего элемента
+     * listFields {List} - Список полей ввода для заданного селектора
+     * selectorContainers {String} - Селектор активного контейнера
+     * self {Object} - Ссылка на текущий контекст (Для работы с содержимым функций)
+     *
+     * *** СОЗДАВАЕМЫЕ СВОЙСТВА ОБЪЕКТА: ***
+     * data-n {Array} - Массив данных для текущего элемента, где n - его порядковый номер
+     * container-n {Element} - Элемент-контейнер для текущего элемента, где n - его порядковый номер
+     * field-n {Element} - Поле ввода для текущего элемента, где n - его порядковый номер
+     */
     o.init = function() {
-        var currentEl = {};// Передаваемый текущий элемент
-        var currentData = {};// Массив данных для текущего элемента
-        var containerEl = {};// Контейнер текущего элемента
-        var field = {};// Поле ввода
-        var dataList = {};// Структура списка данных
-        var self = this;
-        var i = 0;
+        var listElements = document.querySelectorAll(elSelector);
 
-        document.addEventListener('click', function(e) {
-            var event = e || event;
-            if (!event.target.closest('.' + containerClass + '.active')) {
-                hideDataList(containerClass, currentData);
-            }
-        });
+        for (var i = 0; i < listElements.length; i++) {
+            this['data-' + i] = getDataCurrent(listElements[i]);
+            var container = createContainer(listElements[i], containerClass);
+            container.setAttribute('data-idx', i);
+            this['container-' + i] = container;
+            this['field-' + i] = createField(this['container-' + i], fieldName + '-' + i, fieldId + '-' + i);
+            this['field-' + i].value = this['data-' + i][0];
+            this['container-' + i].appendChild(createDataList(this['data-' + i]));
 
-        while (document.querySelectorAll(this.elSelector).length > 0) {
-            currentEl[i] = document.querySelectorAll(this.elSelector)[0];
-            currentData[i] = getDataCurrent(currentEl[i]);
-            containerEl[i] = createContainer(currentEl[i]);
-            containerEl[i].setAttribute('data-idx', i);
-            var containerClass = containerEl[i].classList[0];
-
-            field[i] = createField(containerEl[i], this.fieldName);
-            dataList[i] = createDataList(currentData[i], containerEl[i]);
-            setDefaultValue(field[i], currentData[i][0]);
-            field[i].setAttribute('data-default-value', currentData[i][0]);
-
-            field[i].addEventListener('focus', function(e) {
-                var self = this;
-
-                var list = this.parentNode.nextElementSibling;
-                if (!self.closest('.active')) {
-                    hideDataList(containerClass, currentData);
-                    showDataList(self, list);
-                }
-                document.addEventListener('keydown', function(e) {
-                    var event = e || event;
-                    moveActiveItem(event, self, containerClass, currentData);
-                });
-            });
-
-            field[i].addEventListener('input', function() {
-                var containerList = this.parentNode.nextElementSibling;
-                var idx = this.closest('.' + containerClass).getAttribute('data-idx');
-                completeField(this, containerList, currentData[idx]);
-            });
-
-            i++;
+            this['field-' + i].addEventListener('focus', handlerFocus, false);
         }
     };
 
-    function moveActiveItem(event, ctx, containerClass, currentData) {
-        var curList = ctx.parentNode.nextElementSibling;
-        var curListItems = curList.querySelectorAll('li');
-        var resultValue = null;
+    document.addEventListener('click', handlerClickDocument, false);
 
-        if (event.keyCode === 40) {
-            resultValue = moveItem(0);
-            ctx.value = resultValue;
-        } else if (event.keyCode === 38) {
-            resultValue = moveItem(curListItems.length-1, false);
-            ctx.value = resultValue;
-        } else if (event.keyCode === 13) {
-            event.preventDefault();
-            hideDataList(containerClass, currentData);
-        }
+    function handlerClickDocument(e) {
+        var container = e.target.closest('.' + containerClass + '.active');
 
-        function moveItem(startPos, direction) {
-            direction = (direction === undefined) ? true : false;
-
-            if (curList.querySelectorAll('.active').length === 0) {
-                curList.querySelectorAll('li')[startPos].classList.add('active');
-                resultValue = curList.querySelectorAll('li')[startPos].innerHTML;
-            } else {
-                var curActive = curList.querySelector('.active');
-                if (direction) {
-                    if (curActive.nextElementSibling) {
-                        curActive.classList.remove('active');
-                        curActive.nextElementSibling.classList.add('active');
-                        resultValue = curActive.nextElementSibling.innerHTML;
-                    } else {
-                        resultValue = curActive.innerHTML;
-                    }
-                } else {
-                    if (curActive.previousElementSibling) {
-                        curActive.classList.remove('active');
-                        curActive.previousElementSibling.classList.add('active');
-                        resultValue = curActive.previousElementSibling.innerHTML;
-                    } else {
-                        resultValue = curActive.innerHTML;
-                    }
-                }
-            }
-
-            return resultValue;
+        if (container) {
+            console.log(e.target);
         }
     }
 
     /**
-     * Скрытие всех списков данных
-     * @param containerClass {String} - Класс контейнера компонента
-     * @param currentData {Object} - Объект массивов данных
+     * Обработчик события 'FOCUS'
      */
-    function hideDataList(containerClass, currentData) {
-        var i = 0;
-        while (document.querySelectorAll('.' + containerClass + '.active').length > 0) {
-            var container = document.querySelectorAll('.' + containerClass + '.active')[i];
-            var field = container.querySelector('input[type=text]');
-            if (container.querySelectorAll('li.active').length > 0) {
-                setDefaultValue(field, container.querySelector('li.active').innerHTML);
-            } else {
-                setDefaultValue(field, field.getAttribute('data-default-value'));
-            }
-            container.classList.remove('active');
-            var idx = container.getAttribute('data-idx');
-            var curUL = container.querySelector('ul');
-            container.removeChild(curUL);
-            createDataList(currentData[idx], container);
-            field.blur();
-        }
+    function handlerFocus() {
+        this.value = '';
+        var currentContainer = this.closest('.' + containerClass);
+        currentContainer.classList.add('active');
+    }
+
+    /**
+     * Создание структуры списков
+     * @param data {Array} - Данные для текущего контейнера
+     * @returns {Element} - Список данных <UL>
+     */
+    function createDataList(data) {
+        var ul = document.createElement('ul');
+        data.forEach(function(item) {
+            var li = document.createElement('li');
+            li.innerHTML = item;
+            ul.appendChild(li);
+        });
+        return ul;
+    }
+
+    /**
+     * Создание контейнера для элемента
+     * @param el {Element} - Текущий элемент
+     * @param containerClass {String} - Класс блока-контейнера
+     * @returns {Element}
+     */
+    function createContainer(el, containerClass) {
+        var container = document.createElement('div');
+        container.classList.add(containerClass);
+        el.parentNode.replaceChild(container, el);
+
+        return container;
+    }
+
+    /**
+     * Создание блока с полем ввода
+     * @param block {Element} - Контейнер приложения
+     * @param fieldName {String} - значение атрибута 'name' для поля ввода
+     * @param fieldId {String} - значение атрибута 'id' для поля ввода
+     * @returns {Element}
+     */
+    function createField(block, fieldName, fieldId) {
+        var blockField = document.createElement('div');
+        var field = document.createElement('input');
+        field.setAttribute('type', 'text');
+        field.setAttribute('name', fieldName);
+        field.setAttribute('id', fieldId);
+        blockField.appendChild(field);
+        block.appendChild(blockField);
+
+        return field;
     }
 
     /**
@@ -149,124 +138,29 @@ function FunnySelect(elSelector, obj) {
         return dataArr;
     }
 
-    /**
-     * Создание контейнера для элемента
-     * @param el {Element} - Текущий элемент
-     * @param containerClass {String} - Класс блока-контейнера
-     * @returns {Element}
-     */
-    function createContainer(el, containerClass) {
-        var containerClass = containerClass || 'funny-select';
-        var container = document.createElement('div');
-        container.classList.add(containerClass);
-        el.parentNode.replaceChild(container, el);
-
-        return container;
-    }
-
-    /**
-     * Создание блока с полем ввода
-     * @param block {Element} - Контейнер приложения
-     * @param nameField {String} - значение атрибута 'name' для поля ввода
-     * @returns {Element}
-     */
-    function createField(block, nameField) {
-        var blockField = document.createElement('div');
-        var field = document.createElement('input');
-        field.setAttribute('type', 'text');
-        field.setAttribute('name', nameField);
-        blockField.appendChild(field);
-        block.appendChild(blockField);
-
-        return field;
-    }
-
-    /**
-     * Создание структуры списка данных
-     * @param arrData {Array} - Массив данных
-     * @param insertPlace {Element} - Место для вставки списка данных
-     * @returns {Element}
-     */
-    function createDataList(arrData, insertPlace) {
-        var dataList = document.createElement('ul');
-        arrData.forEach(function(item) {
-            var listItem = document.createElement('li');
-            listItem.innerHTML = item;
-            dataList.appendChild(listItem);
-        });
-        insertPlace.appendChild(dataList);
-
-        return dataList;
-    }
-
-    /**
-     * Установка значения по умолчанию
-     * @param defValue {String} - Значение поля ввода по умолчанию
-     * @param field {Element} - Текущее поле ввода
-     */
-    function setDefaultValue(field, dataItem) {
-        field.value = dataItem;
-    }
-
-    /**
-     * Отображение списка данных при фокусе
-     * @param field {Element} - Поле ввода на котором произошел фокус
-     * @param dataList {Element} - Список данных
-     */
-    function showDataList(field, dataList) {
-        dataList.parentNode.classList.add('active');
-        field.value = '';
-    }
-
-
-    /**
-     * Автоподбор списка элементов
-     * @param field {Element} - Поле ввода
-     * @param containerList {Element} - Блок списка
-     * @param arrData {Array} - Массив элементов
-     */
-    function completeField(field, containerList, arrData) {
-        var reg = new RegExp(field.value, 'i');
-
-        var count = arrData.filter(function(item) {
-            return reg.test(item);
-        });
-        if (count.length == 0) {
-            field.value = field.value.slice(0, -1);
-            return;
-        }
-
-        var newArrData = arrData.filter(function(item) {
-            return reg.test(item);
-        });
-        containerList.innerHTML = '';
-
-        newArrData.forEach(function(item) {
-            var curLi = document.createElement('li');
-            curLi.innerHTML = item;
-            containerList.appendChild(curLi);
-        });
-    }
-
     return o;
 }
 
 var list1 = FunnySelect('.test-list', {
-    fieldName: 'testFieldName'
+    fieldName: 'testFieldName',
+    fieldId: 'testFieldId'
 });
 list1.init();
 
 var list2 = FunnySelect('.test-list-1', {
-    fieldName: 'test2FieldName'
+    fieldName: 'test2FieldName',
+    fieldId: 'test2FieldId'
 });
 list2.init();
 
 var sel = FunnySelect('.test-select', {
-    fieldName: 'test3FieldName'
+    fieldName: 'test3FieldName',
+    fieldId: 'test3FieldId'
 });
 sel.init();
 
 var sel2 = FunnySelect('.test-select-2', {
-    fieldName: 'test4FieldName'
+    fieldName: 'test4FieldName',
+    fieldId: 'test4FieldId'
 });
 sel2.init();

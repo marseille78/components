@@ -1,10 +1,12 @@
-.funny-select ul {
+.funny-field-select li {
     display: none;
 }
-.funny-select.active ul {
+
+.funny-field-select.active li {
     display: block;
 }
-.funny-select li.active {
+
+.funny-field-select li.active {
     background-color: #00f;
     color: #fff;
 }

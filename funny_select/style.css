@@ -1,12 +1,67 @@
+.funny-field-select {
+    position: relative;
+}
+
+.funny-field-select > div {
+    position: relative;
+}
+
+.funny-field-select > div:after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    height: 0;
+    width: 0;
+    margin-top: -3px;
+    background-color: transparent;
+    border-top: 6px solid #ccc;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+}
+
+.funny-field-select ul {
+    margin: 0;
+    padding: 0;
+    border: 1px solid #ccc;
+    position: absolute;
+    background-color: #fff;
+    width: 100%;
+    max-height: 200px;
+    overflow: auto;
+}
+
 .funny-field-select li {
     display: none;
+    padding: 0.25em 0.5em;
+    border-top: 1px solid #ccc;
+    cursor: pointer;
 }
 
 .funny-field-select.active li {
     display: block;
 }
 
-.funny-field-select li.active {
-    background-color: #00f;
+.funny-field-select li:hover {
+    background-color: #0092e2;
     color: #fff;
+}
+
+.funny-field-select li.active {
+    background-color: #0076be;
+    color: #fff;
+}
+
+.funny-field-select input[type=text] {
+    display: block;
+    width: 100%;
+    border: 1px solid #ccc;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    font-size: 13px;
+    padding: 0.25em 0.5em;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
 }

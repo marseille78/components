@@ -4,15 +4,15 @@
  * @param objData {Object} - Объект дополнительных свойств:
  *      fieldName {String} - Корень значения атрибута поля (name) для поля ввода
  *      fieldId {String} - Корень значения атрибута поля (id) для поля ввода
- *      containerClass {String} - Класс контейнера. По умолчанию (funny-select) (В случае изменения, нужно будет изменить классы в файле стилей)
+ *      containerClass {String} - Класс контейнера. По умолчанию (funny-field-select) (В случае изменения, нужно будет изменить классы в файле стилей)
  * @returns {Object}
  * @constructor
  */
-function FunnySelect(elSelector, objData) {
+function FunnyFieldSelect(elSelector, objData) {
     var elSelector = elSelector;
     var fieldName = objData.fieldName;
     var fieldId = objData.fieldId;
-    var containerClass = objData.containerClass || 'funny-select';
+    var containerClass = objData.containerClass || 'funny-field-select';
 
     var o = new Object();
 
@@ -35,12 +35,18 @@ function FunnySelect(elSelector, objData) {
         var listElements = document.querySelectorAll(elSelector);
 
         for (var i = 0; i < listElements.length; i++) {
+
             this['data-' + i] = getDataCurrent(listElements[i]);
             var container = createContainer(listElements[i], containerClass);
             container.setAttribute('data-idx', i);
             this['container-' + i] = container;
             this['field-' + i] = createField(this['container-' + i], fieldName + '-' + i, fieldId + '-' + i);
             this['field-' + i].value = this['data-' + i][0];
+
+            this['container-' + i].addEventListener('keydown', function (e) {
+                var e = e || event;
+                moveActiveItem(e, this);
+            });
         }
 
         var listFields = document.querySelectorAll('.' + containerClass + ' input[type=text]');
@@ -62,8 +68,9 @@ function FunnySelect(elSelector, objData) {
                 var idx = this.closest('[data-idx]').getAttribute('data-idx');
                 var currentField = self['field-' + idx];
                 var currentContainer = self['container-' + idx];
-
                 var listContainers = document.querySelectorAll(selectorContainers);
+
+                this.select();
 
                 destroyDataList(listContainers, this);
 
@@ -71,18 +78,18 @@ function FunnySelect(elSelector, objData) {
                 if (currentField !== this || currentContainer.classList.contains('active')) return;
 
                 var currentData = self['data-' + idx];
-                var selfKeydown = this;
                 currentContainer.classList.add('active');
 
-                createDataList(currentData, currentContainer, currentField, '');
+                createDataList(currentData, currentContainer, currentField);
 
-                document.addEventListener('keydown', function(e) {
-
-                    if (!selfKeydown.closest('.' + containerClass + '.active')) return;
-
-                    var e = e || event;
-                    moveActiveItem(e, selfKeydown);
-                });
+                var listItem = currentContainer.querySelectorAll('li');
+                for (var i = 0, len = listItem.length; i < len; i++) {
+                    listItem[i].addEventListener('click', function(e) {
+                        currentField.value = this.textContent;
+                        currentContainer.classList.remove('active');
+                        currentContainer.removeChild(this.parentNode);
+                    });
+                }
             });
 
             listFields[i].addEventListener('input', function() {
@@ -104,29 +111,40 @@ function FunnySelect(elSelector, objData) {
         });
     };
 
+    /**
+     * Перемещение активного элемента по списку
+     * @param event {Object} - Объект события
+     * @param ctx {Element} - Контейнер компонента
+     *
+     * ВНУТРЕННИЕ ПЕРЕМЕННЫЕ
+     * var currentList {Element} - Текущий список элементов <UL>
+     * var currentListItems {Element} - Список элементов списка <LI>
+     * var currentField {Element} - Текущее поле ввода <INPUT>
+     */
     function moveActiveItem(event, ctx) {
-        console.log('sss');
-        var currentList = ctx.parentNode.nextElementSibling;
-        var currentContainer = currentList.parentNode;
+        var currentList = ctx.querySelector('ul');
         var currentListItems = currentList.querySelectorAll('li');
-        var currentField = currentContainer.querySelector('input[type=text]');
-        var resultValue = null;
+        var currentField = ctx.querySelector('input[type=text]');
 
+        // Нажатие кнопки DOWN
         if (event.keyCode === 40) {
-            // debugger;
-            if (currentContainer.querySelectorAll('.active').length > 0) {
+            if (ctx.querySelectorAll('.active').length > 0) {
                 moveItem();
-            } else {
-                startMoveItem(0);
             }
-        } else if (event.keyCode === 38) {
-            if (currentContainer.querySelectorAll('.active').length > 0) {
-                moveItem();
-            } else {
-                startMoveItem(currentListItems.length-1);
+        }
+        // Нажатие кнопки UP
+        else if (event.keyCode === 38) {
+            if (ctx.querySelectorAll('.active').length > 0) {
+                moveItem(false);
             }
-        } else if (event.keyCode === 13) {
-            //
+        }
+        // Нажатие кнопки ENTER
+        else if (event.keyCode === 13 || event.keyCode === 39 || event.keyCode === 32) {
+            event.preventDefault();
+            currentField.value = ctx.querySelector('ul li.active').textContent;
+            currentField.blur();
+            ctx.classList.remove('active');
+            ctx.removeChild(currentList);
         }
 
         function startMoveItem(pos) {
@@ -134,14 +152,26 @@ function FunnySelect(elSelector, objData) {
             currentField.value = currentListItems[pos].textContent;
         }
 
+        /**
+         * Действия при определении перемещения активного элемента списка
+         * @param direction {Boolean} - Флаг, определяющий направление перемещения активного элемента списка
+         *      true - вниз (по умолчанию)
+         *      false - вверх
+         * ВНУТРЕННИЕ ПЕРЕМЕННЫЕ
+         * var currentItem {Element} - Текущий активный элемент
+         */
         function moveItem(direction) {
-            var currentItem = currentContainer.querySelector('.active');
+            var currentItem = ctx.querySelector('.active');
             direction = (direction === undefined) ? true : false;
 
             if (direction && currentItem.nextElementSibling) {
                 currentItem.removeAttribute('class');
                 currentItem.nextElementSibling.classList.add('active');
                 currentField.value = currentItem.nextElementSibling.textContent;
+            } else if (!direction && currentItem.previousElementSibling) {
+                currentItem.removeAttribute('class');
+                currentItem.previousElementSibling.classList.add('active');
+                currentField.value = currentItem.previousElementSibling.textContent;
             }
         }
 
@@ -209,17 +239,26 @@ function FunnySelect(elSelector, objData) {
      * @param arrData {Array} - Массив данных
      * @param insertPlace {Element} - Место для вставки списка данных
      * @param field {Element} - Поле ввода
-     * @param fieldVal {String} - Значение поля ввода
      * @returns {Element}
+     *
+     * ВНУТРЕННИЕ ПЕРЕМЕННЫЕ
+     * var dataList {Element} - Список <UL>
+     * var hasActive {Boolean} - Флаг, указывающий на наличие активного элемента
      */
-    function createDataList(arrData, insertPlace, field, fieldVal) {
+    function createDataList(arrData, insertPlace, field) {
         var dataList = document.createElement('ul');
+        var hasActive = false;
+
+        /**
+         * var listItem {Element} - Элемент списка
+         */
         arrData.forEach(function(item) {
             var listItem = document.createElement('li');
+            hasActive || listItem.classList.add('active');
             listItem.innerHTML = item;
             dataList.appendChild(listItem);
+            hasActive = true;
         });
-        field.value = fieldVal;
         dataList.setAttribute('data-first-value', arrData[0]);
         insertPlace.appendChild(dataList);
     }
@@ -244,7 +283,9 @@ function FunnySelect(elSelector, objData) {
             var activeField = listContainers[i].querySelector('input[type=text]');
             activeField.value = (activeField.value == '') ? activeList.getAttribute('data-first-value') : activeField.value;
             listContainers[i].classList.remove('active');
-            listContainers[i].removeChild(activeList);
+            if (activeList) {
+                listContainers[i].removeChild(activeList);
+            }
         }
     }
 
@@ -263,6 +304,7 @@ function FunnySelect(elSelector, objData) {
      * afterData {Array} - Новые данные для генерации списка
      */
     function completeField(ctx, self) {
+        // debugger;
         var idx = ctx.closest('[data-idx]').getAttribute('data-idx');
         var currentField = self['field-' + idx];
 
@@ -285,31 +327,31 @@ function FunnySelect(elSelector, objData) {
 
         currentContainer.removeChild(currentDataList);
 
-        createDataList(afterData, currentContainer, ctx, ctx.value);
+        createDataList(afterData, currentContainer, ctx);
     }
 
     return o;
 }
 
-var list1 = FunnySelect('.test-list', {
+var list1 = FunnyFieldSelect('.test-list', {
     fieldName: 'testFieldName',
     fieldId: 'testFieldId'
 });
 list1.init();
 
-var list2 = FunnySelect('.test-list-1', {
+var list2 = FunnyFieldSelect('.test-list-1', {
     fieldName: 'test2FieldName',
     fieldId: 'test2FieldId'
 });
 list2.init();
 
-var sel = FunnySelect('.test-select', {
+var sel = FunnyFieldSelect('.test-select', {
     fieldName: 'test3FieldName',
     fieldId: 'test3FieldId'
 });
 sel.init();
 
-var sel2 = FunnySelect('.test-select-2', {
+var sel2 = FunnyFieldSelect('.test-select-2', {
     fieldName: 'test4FieldName',
     fieldId: 'test4FieldId'
 });
